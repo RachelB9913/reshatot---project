@@ -20,7 +20,7 @@ def generate_random_file(filename, size):
 
 def send_file_packet(filename):
     with open(filename, 'rb') as f:
-        prob = float(input("what probability of package loss you want to try? \nenter the probability: "))
+        # prob = float(input("what probability of package loss you want to try? \nenter the probability: "))
         print('Sending file to server...')
         the_seq_num = 0
         while True:
@@ -29,9 +29,10 @@ def send_file_packet(filename):
                 client_socket.sendto(the_data, server_address)
                 break
             packet = the_seq_num.to_bytes(4, byteorder='big') + the_data
-            if random.random() > prob:  # defining the probability of the data loss
-                client_socket.sendto(packet, server_address)
-                response, _ = client_socket.recvfrom(4096)  # Receive response from server
+            # if random.random() > prob:  # defining the probability of the data loss
+            client_socket.sendto(packet, server_address)
+            #    response, _ = client_socket.recvfrom(4096)  # Receive response from server
+            time.sleep(0.00001)  # Delay
 
             the_seq_num += 1
         print('File sent - packet number based.')
