@@ -73,7 +73,7 @@ generate_random_file(file_name, 10 * 1024 * 1024)  # 10MB
 
 try:
     opt = int(input("what method you want to use? 1-seq_num 2-time 3-both? \nenter a number(1,2,3): "))
-    if opt == 1:
+        if opt == 1:
         send_file_packet(file_name)
         # Receive acknowledgment from server containing list of lost packet sequence numbers
         ack_data, _ = client_socket.recvfrom(4092)
@@ -83,18 +83,28 @@ try:
             exit(0)
         lost_packets = [int.from_bytes(ack_data[i:i + 4], byteorder='big') for i in range(0, len(ack_data), 4)]
         # Resend lost packets the same way as above
+        print("len: ", len(lost_packets))
         print('lost by seq num:', lost_packets, '\nresending...')
         with open(file_name, 'rb') as f:
-            for seq_num in lost_packets:
-                f.seek(seq_num * 4092)  # Move file pointer to the start of the lost packet
-                data = f.read(4092)
-                resend_packet = seq_num.to_bytes(4, byteorder='big') + data
-                client_socket.sendto(resend_packet, server_address)
+            while len(lost_packets) > 0:
+                for seq_num in lost_packets:
+                    f.seek(seq_num * 4092)  # Move file pointer to the start of the lost packet
+                    data = f.read(4092)
+                    resend_packet = seq_num.to_bytes(4, byteorder='big') + data
+                    client_socket.sendto(resend_packet, server_address)
+                    print('resent: ', seq_num)
+                    time.sleep(0.00001)  # Delay
+                    # response_re, _ = client_socket.recvfrom(4096)  # Receive response from server
+                f.seek(0, 2)  # moves the pointer to the end of the file
+                the_data = f.read(4092)
+                if not the_data:
+                    client_socket.sendto(the_data, server_address)
                 response_re, _ = client_socket.recvfrom(4096)  # Receive response from server
-            f.seek(0, 2)  # moves the pointer to the end of the file
-            the_data = f.read(4092)
-            if not the_data:
-                client_socket.sendto(the_data, server_address)
+                if response_re == b'FIN':
+                    print("received FIN packet")
+                    client_socket.close()
+                    exit(0)
+                lost_packets = [int.from_bytes(response_re[i:i + 4], byteorder='big') for i in range(0, len(response_re), 4)]
         print("all the lost packets were sent again")
     if opt == 2:
         lost_by_time = send_file_time(file_name)
