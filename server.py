@@ -65,7 +65,7 @@ def receive_file(filename):
     elif not lost_packets:
         print('No packets are lost - file received successfully.')
         server_socket.sendto(b'FIN', address)
-    else:
+        else:
         print("packets were lost by sequence num\nwaiting for the resent packets...")
         # Convert list of lost packet sequence numbers to bytes
         lost_packets_bytes = b''.join(seq_num.to_bytes(4, byteorder='big') for seq_num in lost_packets)
@@ -74,16 +74,21 @@ def receive_file(filename):
         # opening the same file again in order to append to it all the lost data
         with open(filename, 'ab') as f:
             while True:
-                recv_re_packet, address = server_socket.recvfrom(4096)  # Buffer size is 4096 bytes
-                if not recv_re_packet:
-                    break
-                seq_bytes_re = recv_re_packet[:4]
-                data_re = recv_re_packet[4:]
-                seq_num_re = int.from_bytes(seq_bytes_re, byteorder='big')
-                f.write(data_re)
-                message_re = "ACK"
-                ack_re = message_re.encode()
-                server_socket.sendto(ack_re, address)  # Send acknowledgment back to client
+                while True:
+                    recv_re_packet, address = server_socket.recvfrom(4096)  # Buffer size is 4096 bytes
+                    if not recv_re_packet:
+                        break  # from the small loop because this send over
+                    seq_bytes_re = recv_re_packet[:4]
+                    data_re = recv_re_packet[4:]
+                    seq_num_re = int.from_bytes(seq_bytes_re, byteorder='big')
+                    lost_packets.remove(seq_num_re)  # remove the num we got from the lost list
+                    f.write(data_re)
+                if len(lost_packets) > 0:  # there is more packets we didn't got yet
+                    lost_packets_agin = b''.join(seq_num.to_bytes(4, byteorder='big') for seq_num in lost_packets)
+                    server_socket.sendto(lost_packets_agin, address)  # Send acknowledgment back to client
+                else:
+                    server_socket.sendto(b'FIN', address)
+                    break  # from the big loop because we didn't loss packets
         print('Lost packets by sequence num received successfully.')
 
 
