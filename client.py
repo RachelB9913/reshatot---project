@@ -1,7 +1,5 @@
 import socket
 import os
-import random
-import string
 import time
 
 
@@ -18,10 +16,14 @@ def generate_random_file(filename, size):
         f.write(os.urandom(size))
 
 
-def send_file_packet(filename):
+def send_file_packet(filename, *args):
+    global server_address, client_socket  # define address and socket for the tests
+    if len(args) == 1:
+        server_address = args[0]
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     with open(filename, 'rb') as f:
         print('Sending file to server...')
-        the_seq_num = 0 # counter for the seq num
+        the_seq_num = 0  # counter for the seq num
         while True:
             the_data = f.read(4092) #read the next packets
             if not the_data:
@@ -35,12 +37,17 @@ def send_file_packet(filename):
         client_socket.sendto(b'NO', server_address) # no packets where lost by time
 
 
-def send_file_time(filename):
+def send_file_time(filename, *args):
+    global server_address, client_socket  # define address and socket for the tests
+    if len(args) == 1:
+        server_address = args[0]
+        if client_socket is None:
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     with open(filename, 'rb') as f:
         print('Sending file to server...')
         the_seq_num = 0
         lost_by_time = []
-        client_socket.settimeout(0.0001)  # Set a timeout of 0.005 seconds
+        client_socket.settimeout(0.001)  # Set a timeout of 0.005 seconds
         while True:
             the_data = f.read(4092)
             if not the_data:
