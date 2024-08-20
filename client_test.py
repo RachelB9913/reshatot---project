@@ -1,5 +1,4 @@
 import os
-import socket
 import unittest
 from client import send_file_time, send_file_packet, generate_random_file  # Ensure that the client module is imported
 
@@ -39,6 +38,7 @@ class Test(unittest.TestCase):
 
     def test_send_file_time(self):
         print('test_send_file_time')
+        print('please be patient it takes some time..')
         # Test sending a file with packet loss based on time
         file_name = 'test_file.txt'
         generate_random_file(file_name, 10 * 1024 * 1024)  # 1MB file
