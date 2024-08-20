@@ -76,6 +76,22 @@ def run_server():
     receive_file('received_file.txt')
     server_socket.close()
 
+ def test_client_server_connection(self):
+        # Client setup
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        server_address = ('127.0.0.1', 5632)
+        
+        # Send a test message to the server
+        client_socket.sendto(b'TEST', server_address)
+        
+        # Receive a response from the server
+        data, _ = client_socket.recvfrom(1024)
+        client_socket.close()
+        
+        # Check that the response is what we expect
+        self.assertEqual(data, b'ACK')
+
+
 
 if __name__ == '__main__':
     unittest.main()
