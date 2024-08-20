@@ -91,6 +91,22 @@ def run_server():
         # Check that the response is what we expect
         self.assertEqual(data, b'ACK')
 
+def run_server(cls):
+        # Server setup
+        UDP_IP = "127.0.0.1"
+        UDP_PORT = 5632
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        server_socket.bind((UDP_IP, UDP_PORT))
+        
+        while True:
+            data, addr = server_socket.recvfrom(1024)  # Buffer size is 1024 bytes
+            if data == b'TEST':
+                server_socket.sendto(b'ACK', addr)
+            elif data == b'SHUTDOWN':
+                break
+
+        server_socket.close()
+
 
 
 if __name__ == '__main__':
