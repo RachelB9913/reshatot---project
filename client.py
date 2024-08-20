@@ -151,8 +151,6 @@ try:
                                     break  # Exit the retry loop if ACK is received
                             except socket.timeout:
                                 retries -= 1  # Decrement retry count if ACK not received
-                        if retries == 0:
-                            print(f'Failed to receive ACK for seq_num {seq_num} after multiple retries.')
                 # Ensure to handle the end of file
                 f.seek(0, 2)  # Move the pointer to the end of the file
                 the_data = f.read(4092)
