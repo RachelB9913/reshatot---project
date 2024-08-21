@@ -1,5 +1,6 @@
 import socket
 import os
+import sys
 import time
 
 # Create a UDP socket
@@ -89,32 +90,31 @@ try:
         ack_data, _ = client_socket.recvfrom(4092)
         if ack_data == b'FIN':  # there is no lost packets so the server sent 'FIN'
             print("received FIN packet")
-            client_socket.close()
-            exit(0)
         # turning the list from byts
-        lost_packets = [int.from_bytes(ack_data[i:i + 4], byteorder='big') for i in range(0, len(ack_data), 4)]
-        # Resend lost packets the same way as above
-        print('lost by seq num:', lost_packets, '\nresending...')
-        with open(file_name, 'rb') as f:
-            while len(lost_packets) > 0:  # while there is no lost packets
-                for seq_num in lost_packets:  # for all the seq num of the packets where lost
-                    f.seek(seq_num * 4092)  # Move file pointer to the start of the lost packet
-                    data = f.read(4092)
-                    resend_packet = seq_num.to_bytes(4, byteorder='big') + data  # creat the packet
-                    client_socket.sendto(resend_packet, server_address)
-                    time.sleep(0.00001)  # Delay so won't crush
-                f.seek(0, 2)  # moves the pointer to the end of the file
-                the_data = f.read(4092)
-                if not the_data:
-                    client_socket.sendto(the_data, server_address)  # send the empty packet
-                response_re, _ = client_socket.recvfrom(4096)  # Receive response from server fin or the lost packets
-                if response_re == b'FIN':
-                    print("received FIN packet")
-                    client_socket.close()
-                    exit(0)
-                lost_packets = [int.from_bytes(response_re[i:i + 4], byteorder='big') for i in range(0, len(response_re), 4)]
-                print('the lost packets: ', lost_packets)
-        print("all the lost packets were sent again")
+        else:
+            lost_packets = [int.from_bytes(ack_data[i:i + 4], byteorder='big') for i in range(0, len(ack_data), 4)]
+            # Resend lost packets the same way as above
+            print('lost by seq num:', lost_packets, '\nresending...')
+            with open(file_name, 'rb') as f:
+                while len(lost_packets) > 0:  # while there is no lost packets
+                    for seq_num in lost_packets:  # for all the seq num of the packets where lost
+                        f.seek(seq_num * 4092)  # Move file pointer to the start of the lost packet
+                        data = f.read(4092)
+                        resend_packet = seq_num.to_bytes(4, byteorder='big') + data  # creat the packet
+                        client_socket.sendto(resend_packet, server_address)
+                        time.sleep(0.00001)  # Delay so won't crush
+                    f.seek(0, 2)  # moves the pointer to the end of the file
+                    the_data = f.read(4092)
+                    if not the_data:
+                        client_socket.sendto(the_data, server_address)  # send the empty packet
+                    response_re, _ = client_socket.recvfrom(4096)  # Receive response from server fin or the lost packets
+                    if response_re == b'FIN':
+                        print("received FIN packet")
+                        lost_packets = []
+                    else:
+                        lost_packets = [int.from_bytes(response_re[i:i + 4], byteorder='big') for i in range(0, len(response_re), 4)]
+                        print('the lost packets: ', lost_packets)
+            print("all the lost packets were sent again")
     if opt == 2:
         # if the user chose opt 2 so sending this to the server and start sending the file
         client_socket.sendto(b'2', server_address)
@@ -171,39 +171,37 @@ try:
         lost = []  # the lost packets by seq num from the server (define here)
         if ack_data == b'FIN':  # no lost packets
             print("received FIN packet")
-            client_socket.close()
-            exit(0)
         elif ack_data == b'LOST':  # there is lost packets by seq num
             lost, _ = client_socket.recvfrom(4092)
-        lost_packets = [int.from_bytes(lost[i:i + 4], byteorder='big') for i in range(0, len(lost), 4)]
-        all_lost = list(set(lost_packets).union(set(lost_by_time)))  # union both of the lists
-        all_lost.sort()
-        # Resend lost packets the same way as above
-        print('all packets lost :', all_lost, '\nresending...')
-        with open(file_name, 'rb') as f:
-            while len(all_lost) > 0:
-                for seq_num in all_lost:
-                    # Retry logic for each lost packet
-                    retries = 3  # Number of retries for each lost packet
-                    while retries > 0:
-                        f.seek(seq_num * 4092)  # Move file pointer to the start of the lost packet
-                        data = f.read(4092)
-                        # creat the packet and send it
-                        resend_packet = seq_num.to_bytes(4, byteorder='big') + data
-                        client_socket.sendto(resend_packet, server_address)
-                        try:
-                            response_re, _ = client_socket.recvfrom(4096)  # Try to receive the ACK
-                            if response_re == b'ACK':
-                                all_lost.remove(seq_num)  # if we got ack so no longer lost packet
-                                break  # Exit the retry loop if ACK is received
-                        except socket.timeout:
-                            retries -= 1  # Decrement retry count if ACK not received
-            # Ensure to handle the end of file
-            f.seek(0, 2)  # Move the pointer to the end of the file
-            the_data = f.read(4092)
-            if not the_data:  # when the client done sending the file
-                client_socket.sendto(the_data, server_address)
-        print("all the lost packets were sent again")
+            lost_packets = [int.from_bytes(lost[i:i + 4], byteorder='big') for i in range(0, len(lost), 4)]
+            all_lost = list(set(lost_packets).union(set(lost_by_time)))  # union both of the lists
+            all_lost.sort()
+            # Resend lost packets the same way as above
+            print('all packets lost :', all_lost, '\nresending...')
+            with open(file_name, 'rb') as f:
+                while len(all_lost) > 0:
+                    for seq_num in all_lost:
+                        # Retry logic for each lost packet
+                        retries = 3  # Number of retries for each lost packet
+                        while retries > 0:
+                            f.seek(seq_num * 4092)  # Move file pointer to the start of the lost packet
+                            data = f.read(4092)
+                            # creat the packet and send it
+                            resend_packet = seq_num.to_bytes(4, byteorder='big') + data
+                            client_socket.sendto(resend_packet, server_address)
+                            try:
+                                response_re, _ = client_socket.recvfrom(4096)  # Try to receive the ACK
+                                if response_re == b'ACK':
+                                    all_lost.remove(seq_num)  # if we got ack so no longer lost packet
+                                    break  # Exit the retry loop if ACK is received
+                            except socket.timeout:
+                                retries -= 1  # Decrement retry count if ACK not received
+                # Ensure to handle the end of file
+                f.seek(0, 2)  # Move the pointer to the end of the file
+                the_data = f.read(4092)
+                if not the_data:  # when the client done sending the file
+                    client_socket.sendto(the_data, server_address)
+            print("all the lost packets were sent again")
 
 
 finally:
